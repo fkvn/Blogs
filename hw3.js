@@ -2,7 +2,7 @@
 
 const mongodb = require('mongodb')
 const mongoClient = mongodb.MongoClient
-const url = 'mongodb://cs5220stu21:CAORqZiMyUls@ecst-csproj2.calstatela.edu:6317/cs5220stu21'
+const url = 'mongodb://cs5220stu21:CAORqZiMyUls@ecst-csproj2.calstatela.edu:6317/cs5220stu21?authSource=cs5220stu21'
 const readlineSync = require('readline-sync');
 const clear = require('clear');
 
@@ -188,9 +188,9 @@ async function hw3 (db) {
 }
 
 
-mongoClient.connect(url, { useUnifiedTopology: true }, (error, client) => {
+mongoClient.connect(url, { useUnifiedTopology: true }, async (error, client) => {
     if (error) console.error(error)
     var db = client.db('cs5220stu21')
-    hw3(db)
-
+    await hw3(db)
+    client.close();
 })
