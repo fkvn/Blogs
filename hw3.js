@@ -4,7 +4,6 @@ const mongodb = require('mongodb')
 const mongoClient = mongodb.MongoClient
 const url = 'mongodb://cs5220stu21:CAORqZiMyUls@ecst-csproj2.calstatela.edu:6317/cs5220stu21?authSource=cs5220stu21'
 const readlineSync = require('readline-sync');
-const clear = require('clear');
 
 const getUsers = (db) => {
     return new Promise((resolve, reject) => {
@@ -37,7 +36,7 @@ const getArticlesByUserId = (db, user_id) => {
 
 var  mainScreen = (db) => {
     return new Promise(async (resolve, reject) => {
-        clear();
+        
 
         console.log('\nMain Menu\n')
 
@@ -55,7 +54,7 @@ var  mainScreen = (db) => {
                 url: "exit"
             });
         
-        if (Number(choice) > 0 && Number(choice) <= users.length) {
+        else if (Number(choice) > 0 && Number(choice) <= users.length) {
             var user = await getUser(db, users[Number(choice) - 1]._id)
 
             resolve({
@@ -64,12 +63,16 @@ var  mainScreen = (db) => {
             });
         }
         
+        else 
+            resolve({
+                url: "mainMenu"
+            });
+
     })
 }
 
 var userScreen = (db, user) => {
     return new Promise(async (resolve, reject) => {
-        clear();
 
         console.log(`\nUser - ${user.firstName} ${user.lastName}`);
 
@@ -99,53 +102,40 @@ var userScreen = (db, user) => {
             })
         }
         else 
-            resolve({url: "exit"})
+            resolve({url: "userScreen", user: user})
     })
 }
 
 var userArticleScreen = (db, user) => {
     return new Promise(async (resolve, reject) => {
-        clear();
-
-        console.log(`\nUser - ${user.firstName} ${user.lastName}`);
-
-        console.log(`\nList the articles authored by the user\n`);
 
         var articles = await getArticlesByUserId(db, user._id)
 
         for (let i in articles) {
-            console.log(`* Article ${Number(i) + 1}: ${articles[i].title}`)
+            console.log(`\n* Article ${Number(i) + 1}: ${articles[i].title}`)
         }
         
-        console.log('\nb) Back to User page')
-
-        var choice = readlineSync.question('\nPlease enter your choice: ');
-
-        if (choice === 'b')
-        {
-            resolve({
-                url: "userScreen",
-                user: user
-            })
-        }
-        else 
-            resolve({url: "exit"})
+        resolve({url: "userScreen", user: user})
     })
 }
 
 var updateUserScreen = (db, user, field) => {
     return new Promise(async (resolve, reject) => {
-        clear();
+        
         var newValue = readlineSync.question(`\nPlease enter a new value of ${field}: `);
 
-        if (field === 'first name') {
-            await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {firstName: newValue}});
-        }
-        else if (field === 'last name') {
-            await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {lastName: newValue}});
-        }
-        else if (field === 'email') {
-            await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {email: newValue}});
+        if (newValue.trim() != "")
+        {
+            if (field === 'first name') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {firstName: newValue}});
+            }
+            else if (field === 'last name') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {lastName: newValue}});
+            }
+            else if (field === 'email') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {email: newValue}});
+            }
+
         }
 
         user = await getUser(db, user._id)
@@ -176,10 +166,8 @@ async function hw3 (db) {
             }
 
             else if (returnUrl.url === 'updateUserScreen') {
-                console.log("Hello")
                 returnUrl = await updateUserScreen(db, returnUrl.user, returnUrl.field)
             }
-
         }
 
         process.exit(1)
