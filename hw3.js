@@ -170,7 +170,7 @@ async function hw3 (db) {
             }
         }
 
-        process.exit(1)
+        process.exit(0)
 
     } catch(e) {}
 }
