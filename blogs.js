@@ -1,74 +1,184 @@
-/* This is a Mongo Shell script. Run it inside Mongo shell after
- * selecting the database (and authenticating the user, if necessary):
- *      &gt; load('blogs.js');
- */
+'use strict'
+
+const mongodb = require('mongodb')
+const mongoClient = mongodb.MongoClient
+const url = 'mongodb://<username>:<password>@<host>:<port>/<database>?authSource=<database>'
+const readlineSync = require('readline-sync');
+
+const getUsers = (db) => {
+    return new Promise((resolve, reject) => {
+        db.collection('users').find({}).toArray((err, docs) => {
+            if (err) reject(err);
+            resolve(docs);
+        })
+    })
+}
+
+const getUser = (db, id) => {
+    var users = db.collection('users')
+    return new Promise((resolve, reject) => {
+        users.findOne({ "_id": mongodb.ObjectID(id) }, (err, urs) => {
+            if (err) reject(err);
+            resolve(urs);
+        })
+    })
+}
+
+const getArticlesByUserId = (db, user_id) => {
+    var articles = db.collection('articles')
+    return new Promise((resolve, reject) => {
+        articles.find({"author": mongodb.ObjectID(user_id)},{projection:{_id: 0, 'title':1}}).toArray((err, artcs) => {
+            if (err) reject(err);
+            resolve(artcs)
+        })
+    })
+}
+
+var  mainScreen = (db) => {
+    return new Promise(async (resolve, reject) => {
+        
+
+        console.log('\nMain Menu\n')
+
+        var users = await getUsers(db);
+
+        for (let i in users) {
+            console.log(`${Number(i) + 1}) ${users[i].firstName} ${users[i].lastName}`)
+        }
+        console.log('x) Exit')
+
+        var choice = readlineSync.question('\nPlease enter your choice: ');
+
+        if (choice === 'x')
+            resolve({
+                url: "exit"
+            });
+        
+        else if (Number(choice) > 0 && Number(choice) <= users.length) {
+            var user = await getUser(db, users[Number(choice) - 1]._id)
+
+            resolve({
+                url: "userScreen",
+                user: user
+            });
+        }
+        
+        else 
+            resolve({
+                url: "mainMenu"
+            });
+
+    })
+}
+
+var userScreen = (db, user) => {
+    return new Promise(async (resolve, reject) => {
+
+        console.log(`\nUser - ${user.firstName} ${user.lastName}`);
+
+        console.log(`\n1) List the articles authored by the user\n2) Change first name\n3) Change last name\n4) Change email\nb) Back to Main Menu`);
+
+        var choice = readlineSync.question('\nPlease enter your choice: ');
+
+        if (choice === 'b')
+        {
+            resolve({
+                url: "mainMenu"
+            })
+        }
+
+        if (choice === '1') {
+            resolve({
+                url: "userArticleScreen",
+                user: user
+            })
+        }
+
+        if (choice === '2' || choice  === '3' || choice === '4') {
+            resolve({
+                url: "updateUserScreen",
+                user: user,
+                field: choice === '2' ? 'first name': choice === '3' ? 'last name': 'email'
+            })
+        }
+        else 
+            resolve({url: "userScreen", user: user})
+    })
+}
+
+var userArticleScreen = (db, user) => {
+    return new Promise(async (resolve, reject) => {
+
+        var articles = await getArticlesByUserId(db, user._id)
+
+        for (let i in articles) {
+            console.log(`\n* Article ${Number(i) + 1}: ${articles[i].title}`)
+        }
+        
+        resolve({url: "userScreen", user: user})
+    })
+}
+
+var updateUserScreen = (db, user, field) => {
+    return new Promise(async (resolve, reject) => {
+        
+        var newValue = readlineSync.question(`\nPlease enter a new value of ${field}: `);
+
+        if (newValue.trim() != "")
+        {
+            if (field === 'first name') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {firstName: newValue}});
+            }
+            else if (field === 'last name') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {lastName: newValue}});
+            }
+            else if (field === 'email') {
+                await db.collection('users').updateOne({"_id": mongodb.ObjectID(user._id)}, {$set: {email: newValue}});
+            }
+
+        }
+
+        user = await getUser(db, user._id)
+
+        resolve({
+            url: "userScreen",
+            user: user
+        })
+    })
+}
+
+async function blog (db) {
+    let returnUrl
+    try {
+        returnUrl = await mainScreen(db)
+
+        while (returnUrl.url !== 'exit') {
+
+            if (returnUrl.url === 'mainMenu')
+                returnUrl = await mainScreen(db)
+
+            else if (returnUrl.url === 'userScreen') {
+                returnUrl = await userScreen(db, returnUrl.user)
+            }
+
+            else if (returnUrl.url === 'userArticleScreen') {
+                returnUrl = await userArticleScreen(db, returnUrl.user)
+            }
+
+            else if (returnUrl.url === 'updateUserScreen') {
+                returnUrl = await updateUserScreen(db, returnUrl.user, returnUrl.field)
+            }
+        }
+
+        process.exit(0)
+
+    } catch(e) {}
+}
 
 
-db.articles.drop();
-db.users.drop();
-
-// create a unique index on the email field in user
-
-db.users.createIndex({
-  email: 1
-}, {
-  unique: true
-});
-
-// insert two users and get the generated _id
-
-userId1 = db.users.insertOne({
-  firstName: 'John',
-  lastName: 'Doe',
-  email: 'jdoe1@localhost'
-}).insertedId;
-
-userId2 = db.users.insertOne({
-  firstName: 'Jane',
-  lastName: 'Doe',
-  email: 'jdoe2@localhost'
-}).insertedId;
-
-print(userId1);
-print(userId2);
-
-// insert two articles
-
-article1 = {
-  title: 'Using MongoDB',
-  text: 'Something about MongoDB',
-  author: userId1,
-  date: new Date(2017, 2, 20),
-  comments: [{
-    text: 'I like this article!',
-    author: {
-      id: userId2,
-      firstName: 'Jane',
-      lastName: 'Doe'
-    },
-    date: new Date(2017, 2, 22)
-  }],
-  tags: ['NoSQL', 'MongoDB', 'Web Development']
-};
-
-article2 = {
-  title: 'Programming Node.js',
-  text: 'Something about Node.js',
-  author: userId2,
-  date: new Date(2017, 3, 1),
-  comments: [{
-    text: 'Thank you for the article.',
-    author: {
-      id: userId1,
-      firstName: 'John',
-      lastName: 'Doe'
-    },
-    date: new Date(2017, 3, 2)
-  }],
-  tags: ['JavaScript', 'Node.js', 'Web Development']
-};
-
-db.articles.insert(article1);
-db.articles.insert(article2);
-
-
+mongoClient.connect(url, { useUnifiedTopology: true }, async (error, client) => {
+    if (error) console.error(error)
+    var db = client.db('<database>')
+    await blog(db)
+    client.close();
+})
