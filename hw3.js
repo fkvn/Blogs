@@ -2,7 +2,7 @@
 
 const mongodb = require('mongodb')
 const mongoClient = mongodb.MongoClient
-const url = 'mongodb://cs5220stu21:CAORqZiMyUls@ecst-csproj2.calstatela.edu:6317/cs5220stu21?authSource=cs5220stu21'
+const url = 'mongodb://<username>:<password>@<host>:<port>/<database>?authSource=<database>'
 const readlineSync = require('readline-sync');
 
 const getUsers = (db) => {
@@ -178,7 +178,7 @@ async function hw3 (db) {
 
 mongoClient.connect(url, { useUnifiedTopology: true }, async (error, client) => {
     if (error) console.error(error)
-    var db = client.db('cs5220stu21')
+    var db = client.db(<database>)
     await hw3(db)
     client.close();
 })
